@@ -1,0 +1,40 @@
+version: 2.1
+executors:
+  my_executor:
+    docker:
+      - image: ruby:2.7.2-buster
+
+jobs:
+  digdag:
+    executor: my_executor
+    steps:
+      - checkout
+      - run:
+          name: Setup
+          command: |
+            gem install td
+            yes | td -e https://api.treasuredata.com -k dummy wf || true
+      - run:
+          name: Check config
+          command: cd workflow && td wf check
+      - run:
+          name: Push project
+          command: td -e https://api.treasuredata.com -k $TD_API_KEY wf push $WF_PROJECT -r `date -u +"%Y-%m-%dT%H:%M:%SZ"`-`git rev-parse HEAD`
+
+workflows:
+  version: 2
+  build-n-deploy:
+    jobs:
+      - digdag:
+         filters:
+            branches:
+              only: main
+        # If you would like to restrict branches/tags to running Digdag jobs, use `filters` option.
+        # Following filter means `digdag` job will run only `dev` and `user-` starting branches.
+        # @see: https://circleci.com/docs/2.0/workflows/
+        #  - digdag:
+        #      filters:
+        #        branches:
+        #          only:
+        #            - dev
+        #            - /user-.*/

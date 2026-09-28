@@ -1,0 +1,117 @@
+# =============================================================================
+# API ENRICHMENT TEMPLATE
+# =============================================================================
+# Purpose : Extracts customer records from TD, calls an external enrichment
+#           API in batches, and writes the enriched results back to TD.
+#
+# Pattern : Extract → Enrich (via external API) → Load back to TD
+#
+# Template: Configured for a generic REST enrichment API.
+#           Ships with a mock implementation so it runs out of the box.
+#           Swap scripts/enrich.py for your real API client.
+#
+# Schedule: Daily at 03:00 UTC
+# =============================================================================
+
+timezone: UTC
+
+# schedule:
+#   daily>: "03:00:00"
+
+_export:
+  # ── Database configuration ─────────────────────────────────
+  td:
+    database: demo_db       # CHANGE_ME: your TD database
+    engine: presto
+
+
+  api_base_url: ${secret:api_enrichment.base_url}
+  api_key:      ${secret:api_enrichment.api_key}
+
+  # ── Enrichment job configuration ───────────────────────────
+  source_table:   profile_attributes   # CHANGE_ME: table to enrich
+  enriched_table: profile_attributes_enriched  # CHANGE_ME: output table
+  batch_size:     "100"                # Records per API call (tune for rate limits)
+
+# -----------------------------------------------------------------------------
+# Step 1: Extract records that need enrichment
+# -----------------------------------------------------------------------------
++extract_records_for_enrichment:
+  td>: queries/extract/get_records_to_enrich.sql
+  create_table: api_enrichment_input_${session_date_compact}
+  _retry:
+    limit: 3
+    interval: 30
+    interval_type: constant
+
++check_records_exist:
+  td>:
+    query: |
+      SELECT COUNT(*) AS record_count
+      FROM demo_lotto24.api_enrichment_input_${session_date_compact}
+  store_last_results: true
+
+# -----------------------------------------------------------------------------
+# Step 2: Call external API and write enriched data to staging table
+# -----------------------------------------------------------------------------
++enrich_if_records_exist:
+  if>: ${td.last_results.record_count > 0}
+  _do:
+
+    +call_enrichment_api:
+      py>: scripts.enrich.run_enrichment
+      database:      demo_lotto24
+      source_table:  api_enrichment_input_${session_date_compact}
+      output_table:  api_enrichment_staging_${session_date_compact}
+      api_base_url:  ${api_base_url}
+      api_key:       ${api_key}
+      batch_size:    ${batch_size}
+      session_date:  ${session_date}
+      _retry:
+        limit: 2
+        interval: 60
+        interval_type: exponential
+
+    # -------------------------------------------------------------------------
+    # Step 3: Validate enrichment output before promoting to final table
+    # -------------------------------------------------------------------------
+    +validate_enrichment_output:
+      td>: queries/load/validate_enrichment.sql
+      store_last_results: true
+
+    +assert_enrichment_quality:
+      if>: ${td.last_results.null_enrichment_pct > 50}
+      _do:
+        +raise_quality_failure:
+          fail>: "Enrichment quality check failed — ${td.last_results.null_enrichment_pct}% of records have null enrichment fields. Check API connectivity."
+
+    # -------------------------------------------------------------------------
+    # Step 4: Merge enriched staging into final output table
+    # -------------------------------------------------------------------------
+    +promote_enriched_data:
+      td>: queries/load/merge_enriched_data.sql
+      insert_into: ${enriched_table}
+
+    # -------------------------------------------------------------------------
+    # Step 5: Clean up staging table
+    # -------------------------------------------------------------------------
+    +cleanup_staging:
+      td>:
+        query: |
+          DROP TABLE IF EXISTS demo_lotto24.api_enrichment_staging_${session_date_compact}
+
+    +log_completion:
+      echo>: "API enrichment complete — ${td.last_results.record_count} record(s) enriched for session ${session_date}."
+
++skip_if_no_records:
+  if>: ${td.last_results.record_count == 0}
+  _do:
+    +log_skip:
+      echo>: "No records to enrich for session ${session_date}. Skipping API call."
+
+# -----------------------------------------------------------------------------
+# Error handler
+# -----------------------------------------------------------------------------
+_error:
+  +alert_on_failure:
+    echo>: "API Enrichment workflow FAILED for session ${session_date}. Check logs for details."

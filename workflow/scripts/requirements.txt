@@ -1,0 +1,6 @@
+# API Enrichment Template — Python dependencies
+# Install via: pip install -r requirements.txt
+
+pytd>=1.4.0          # Treasure Data Python client
+pandas>=1.5.0        # DataFrame handling
+requests>=2.28.0     # HTTP client for external API calls
