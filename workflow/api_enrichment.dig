@@ -33,9 +33,7 @@ _export:
   enriched_table: profile_attributes_enriched  # CHANGE_ME: output table
   batch_size:     "100"                # Records per API call (tune for rate limits)
 
-# -----------------------------------------------------------------------------
-# Step 1: Extract records that need enrichment
-# -----------------------------------------------------------------------------
+
 +extract_records_for_enrichment:
   td>: queries/extract/get_records_to_enrich.sql
   create_table: api_enrichment_input_${session_date_compact}
@@ -72,9 +70,7 @@ _export:
         interval: 60
         interval_type: exponential
 
-    # -------------------------------------------------------------------------
-    # Step 3: Validate enrichment output before promoting to final table
-    # -------------------------------------------------------------------------
+
     +validate_enrichment_output:
       td>: queries/load/validate_enrichment.sql
       store_last_results: true
@@ -85,16 +81,12 @@ _export:
         +raise_quality_failure:
           fail>: "Enrichment quality check failed — ${td.last_results.null_enrichment_pct}% of records have null enrichment fields. Check API connectivity."
 
-    # -------------------------------------------------------------------------
-    # Step 4: Merge enriched staging into final output table
-    # -------------------------------------------------------------------------
+
     +promote_enriched_data:
       td>: queries/load/merge_enriched_data.sql
       insert_into: ${enriched_table}
 
-    # -------------------------------------------------------------------------
-    # Step 5: Clean up staging table
-    # -------------------------------------------------------------------------
+
     +cleanup_staging:
       td>:
         query: |
