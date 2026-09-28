@@ -19,8 +19,12 @@ jobs:
           command: cd workflow && td wf check
       - run:
           name: Push project
-          command: td -e https://api.treasuredata.com -k $TD_API_KEY wf push "$WF_PROJECT" -r `date -u +"%Y-%m-%dT%H:%M:%SZ"`-`git rev-parse HEAD`
-
+          command: |
+            cd workflow
+            td -e https://api.treasuredata.com \
+              -k "$TD_API_KEY" \
+              wf push "$WF_PROJECT" \
+              -r "$(date -u +'%Y-%m-%dT%H:%M:%SZ')-$(git rev-parse HEAD)"
 workflows:
   version: 2
   build-n-deploy:
