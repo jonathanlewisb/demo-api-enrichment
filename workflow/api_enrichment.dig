@@ -49,6 +49,12 @@ _export:
       FROM db_demo.api_enrichment_input_${session_date_compact}
   store_last_results: true
 
++skip_if_no_records:
+  if>: ${td.last_results.record_count == 0}
+  _do:
+    +log_skip:
+      echo>: "No records to enrich for session ${session_date}. Skipping API call."
+
 # -----------------------------------------------------------------------------
 # Step 2: Call external API and write enriched data to staging table
 # -----------------------------------------------------------------------------
@@ -93,13 +99,7 @@ _export:
           DROP TABLE IF EXISTS db_demo.api_enrichment_staging_${session_date_compact}
 
     +log_completion:
-      echo>: "API enrichment complete — ${td.last_results.record_count} record(s) enriched for session ${session_date}."
-
-+skip_if_no_records:
-  if>: ${td.last_results.record_count == 0}
-  _do:
-    +log_skip:
-      echo>: "No records to enrich for session ${session_date}. Skipping API call."
+      echo>: "API enrichment complete for session ${session_date}."
 
 # -----------------------------------------------------------------------------
 # Error handler
