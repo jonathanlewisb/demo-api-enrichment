@@ -46,7 +46,7 @@ _export:
   td>:
     query: |
       SELECT COUNT(*) AS record_count
-      FROM db_demo.api_enrichment_input_${session_date_compact}
+      FROM demo_db.api_enrichment_input_${session_date_compact}
   store_last_results: true
 
 # -----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ _export:
 
     +call_enrichment_api:
       py>: scripts.enrich.run_enrichment
-      database:      db_demo
+      database:      demo_db
       source_table:  api_enrichment_input_${session_date_compact}
       output_table:  api_enrichment_staging_${session_date_compact}
       api_base_url:  ${api_base_url}
@@ -90,7 +90,7 @@ _export:
     +cleanup_staging:
       td>:
         query: |
-          DROP TABLE IF EXISTS db_demo.api_enrichment_staging_${session_date_compact}
+          DROP TABLE IF EXISTS demo_db.api_enrichment_staging_${session_date_compact}
 
     +log_completion:
       echo>: "API enrichment complete — ${td.last_results.record_count} record(s) enriched for session ${session_date}."

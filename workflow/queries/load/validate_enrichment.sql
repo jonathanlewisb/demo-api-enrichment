@@ -11,4 +11,4 @@ SELECT
   ROUND(
     (COUNT(*) - COUNT(enriched_field_1)) * 100.0 / NULLIF(COUNT(*), 0)
   , 2)                                                                  AS null_enrichment_pct
-FROM db_demo.api_enrichment_staging_${session_date_compact}
+FROM demo_db.api_enrichment_staging_${session_date_compact}

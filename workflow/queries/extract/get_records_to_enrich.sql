@@ -22,10 +22,10 @@ SELECT
   p.gender,
   p.time
 
-FROM db_demo.profile_attributes p
+FROM demo_db.profile_attributes p
 
 -- Only enrich records not yet enriched, or stale (>30 days old)
-LEFT JOIN db_demo.profile_attributes_enriched e
+LEFT JOIN demo_db.profile_attributes_enriched e
   ON p.td_id = e.td_id
 
 WHERE e.td_id IS NULL

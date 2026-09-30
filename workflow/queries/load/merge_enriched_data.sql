@@ -31,5 +31,5 @@ SELECT
   api_provider,   -- which API produced this enrichment
   CAST(TO_UNIXTIME(NOW()) AS BIGINT) AS time
 
-FROM db_demo.api_enrichment_staging_${session_date_compact}
+FROM demo_db.api_enrichment_staging_${session_date_compact}
 WHERE enriched_field_1 IS NOT NULL  -- only promote successfully enriched records
